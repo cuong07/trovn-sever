@@ -26,22 +26,26 @@ pipeline {
             echo "$ENV_BASE64" | base64 -d > .env
 
             echo "📋 Preview environment variables (hide sensitive values):"
-            # In ra 10 dòng đầu tiên, bỏ PASSWORD/SECRET/KEY
+            # In ra 10 dòng đầu, bỏ PASSWORD/SECRET/KEY để tránh lộ secrets
             cat .env | grep -v "PASSWORD\\|SECRET\\|KEY" | head -10
 
             echo "🔍 Validating DATABASE_URL..."
             if grep -q "DATABASE_URL" .env; then
                 DB_URL=$(grep "DATABASE_URL" .env | cut -d'=' -f2- | tr -d '"')
                 echo "DATABASE_URL => $DB_URL"
-                if [[ "$DB_URL" == postgresql://* ]] || [[ "$DB_URL" == postgres://* ]]; then
-                    echo "✅ DATABASE_URL format is valid"
-                else
-                    echo "❌ DATABASE_URL format is invalid: $DB_URL"
-                    echo "Expected: postgresql://user:password@host:port/database"
-                    exit 1
-                fi
+
+                case "$DB_URL" in
+                    postgresql://*|postgres://*)
+                        echo "✅ DATABASE_URL format is valid"
+                        ;;
+                    *)
+                        echo "❌ DATABASE_URL format is invalid: $DB_URL"
+                        echo "Expected format: postgresql://user:password@host:port/database"
+                        exit 1
+                        ;;
+                esac
             else
-                echo "❌ DATABASE_URL not found in .env"
+                echo "❌ DATABASE_URL not found in .env file"
                 echo "Available variables:"
                 cat .env | grep -E "^[A-Z]" | head -5
                 exit 1
