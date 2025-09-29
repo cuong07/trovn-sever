@@ -19,11 +19,9 @@ pipeline {
 
         stage('Prepare Environment File') {
             steps {
-                withEnv(["ENV_BASE64=${ENV_BASE64}"]) {
-                    sh '''
-                echo "$ENV_BASE64" | base64 -d > .env
-            '''
-                }
+                sh '''
+            echo "$ENV_BASE64" | base64 -d > .env
+        '''
             }
         }
 
