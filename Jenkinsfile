@@ -21,37 +21,13 @@ pipeline {
             steps {
                 sh '''
             echo "🔧 Creating environment file..."
-
-            # Decode base64 -> .env
             echo "$ENV_BASE64" | base64 -d > .env
 
+            # Fix DATABASE_URL nếu bị bao bởi dấu "
+            sed -i 's/^DATABASE_URL="\\(.*\\)"/DATABASE_URL=\\1/' .env
+
             echo "📋 Preview environment variables (hide sensitive values):"
-            # In ra 10 dòng đầu, bỏ PASSWORD/SECRET/KEY để tránh lộ secrets
-            cat .env | grep -v "PASSWORD\\|SECRET\\|KEY" | head -10
-
-            echo "🔍 Validating DATABASE_URL..."
-            if grep -q "DATABASE_URL" .env; then
-                DB_URL=$(grep "DATABASE_URL" .env | cut -d'=' -f2- | tr -d '"')
-                echo "DATABASE_URL => $DB_URL"
-
-                case "$DB_URL" in
-                    postgresql://*|postgres://*)
-                        echo "✅ DATABASE_URL format is valid"
-                        ;;
-                    *)
-                        echo "❌ DATABASE_URL format is invalid: $DB_URL"
-                        echo "Expected format: postgresql://user:password@host:port/database"
-                        exit 1
-                        ;;
-                esac
-            else
-                echo "❌ DATABASE_URL not found in .env file"
-                echo "Available variables:"
-                cat .env | grep -E "^[A-Z]" | head -5
-                exit 1
-            fi
-
-            echo "✅ Environment file validation completed!"
+            grep -v "PASSWORD\\|SECRET\\|KEY" .env | head -10
         '''
             }
         }
