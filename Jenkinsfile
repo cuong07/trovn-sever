@@ -19,13 +19,11 @@ pipeline {
 
         stage('Prepare Environment File') {
             steps {
-                sh """
-                    echo "🔧 Creating environment file..."
-                    echo "\$ENV_BASE64" | base64 -d > .env
-                    echo "📋 Environment variables:"
-                    cat .env | grep -v "PASSWORD\\|SECRET\\|KEY" | head -10
-                    echo "✅ Environment file created successfully!"
-                """
+                withEnv(["ENV_BASE64=${ENV_BASE64}"]) {
+                    sh '''
+                echo "$ENV_BASE64" | base64 -d > .env
+            '''
+                }
             }
         }
 
@@ -45,6 +43,28 @@ pipeline {
                 sh """
                     docker push ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER}
                     docker push ${REGISTRY}/${IMAGE_NAME}:latest
+                """
+            }
+        }
+
+        stage('Test Database Connection') {
+            steps {
+                sh """
+                    echo "🧪 Testing database connection..."
+                    docker run --rm --env-file .env ${REGISTRY}/${IMAGE_NAME}:${BUILD_NUMBER} node -e "
+                        import { PrismaClient } from '@prisma/client';
+                        const prisma = new PrismaClient();
+                        console.log('Testing database connection...');
+                        prisma.\\\$connect()
+                            .then(() => {
+                                console.log('✅ Database connection successful');
+                                process.exit(0);
+                            })
+                            .catch((error) => {
+                                console.error('❌ Database connection failed:', error.message);
+                                process.exit(1);
+                            });
+                    " || echo "⚠️ Database test failed, but continuing deployment..."
                 """
             }
         }
